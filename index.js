@@ -5,20 +5,26 @@ const {connection} = require("./db")
 const app = express()
 const jwt = require('jsonwebtoken')
 const {UserRouter} = require("./User.routes/routes")
-const {auth} = require("./middelwear/auth.middlewear")
-const {noteRouter} = require("./User.routes/note.route")
+
+
+const {dataRouter} = require("./User.routes/data.route")
 require('dotenv').config()
 const cors = require("cors")
 app.use(express.json())
 app.use(cors())
 app.use("/users",UserRouter)
-
-
-app.use(auth)
-app.use("/notes",noteRouter)
 app.get("/movie",(req,res)=>{
     res.status(200).json({"msg":"movie data"})
 })
+app.use("/data", dataRouter);
+const {cartRouter} = require("./User.routes/cart.routes")
+
+app.use("/cart", cartRouter);
+
+const {auth} = require("./middelwear/auth.middlewear")
+app.use(auth)
+
+
 
 app.listen(process.env.port,async()=>{
 

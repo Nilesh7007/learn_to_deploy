@@ -1,72 +1,77 @@
-const express = require ("express");
-
-const  {UserModel} = require("../model/user.model")
-const jwt = require('jsonwebtoken')
-
-const bcrypt = require("bcrypt")
+const express = require("express");
+const { UserModel } = require("../model/user.model");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 const UserRouter = express.Router();
 
-UserRouter.get("/",(req,res)=>{
-    res.send("welcome to home")
-})
+UserRouter.get("/", (req, res) => {
+  res.send("Welcome to home");
+});
 
+UserRouter.post("/register", async (req, res) => {
+  const { name, email, password, age } = req.body;
 
-UserRouter.post("/register",async(req,res)=>{
-    // logic
-const {name, email, password,age}=req.body
-    try {
-
-        bcrypt.hash(password, 5,async(err, hash)=> {
-            
-            const user = new UserModel({name, email, password:hash,age})
-            await user.save()
-    res.status(200).json({"msg":"New user has been registered"})
-        });
-
-
-       
-
-    } catch (error) {
-        res.status(400).json({"msg":err.message})
+  try {
+    if(name==""||email==""||password==""||age==""){
+      res.send({msg: "All fields are required"})
+      return;
     }
-})
+    const existing_user = await UserModel.findOne({ email });
 
-
-
-UserRouter.post("/login",async(req,res)=>{
-    // logic
-
-    const {email,password} = req.body
-
-    try {
-
-       
-        const user =await UserModel.findOne({email})
-        if(user){
-            bcrypt.compare(password, user.password,(err, result)=> {
-               
-                if(result){
-                    const token = jwt.sign({autherID:user._id,auther:user.name}, 'masai');
-                    res.status(200).json({"msg":"Login sucesseful","token":token})
-
-                }
-
-                else{
-                    res.status(200).json({"msg": "wrong credentials"})
-                }
-            });
-
-          
-        }
-        else{
-            res.status(200).json({"msg": "wrong credentials"})
-        }
-    } catch (error) {
-        res.status(400).json({"msg":err.message})
+    if (existing_user) {
+      res.status(409).json({ msg: "User already exists" });
+      return;
     }
 
-})
+    const hashedPassword = await bcrypt.hash(password, 10);
 
+    const user = new UserModel({
+      name,
+      email,
+      password: hashedPassword,
+      age,
+    });
 
-module.exports = {UserRouter}
+    await user.save();
+
+    res.status(200).json({ msg: "New user has been registered" });
+  } catch (error) {
+    res.status(400).json({ msg: error.message });
+  }
+});
+
+UserRouter.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await UserModel.findOne({ email });
+
+    if (!user) {
+      res.status(401).json({ msg: "Incorrect email or password" });
+      return;
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      res.status(401).json({ msg: "Incorrect email or password" });
+      return;
+    }
+    if(email==""||password==""){
+      res.send({msg: "All fields are required"})
+      return;
+    }
+
+    const token = jwt.sign(
+      { autherID: user._id, auther: user.name },
+      "masai"
+    );
+
+    res.status(200).json({ msg: "Login successful", token: token });
+  } catch (error) {
+    res.status(400).json({ msg: error.message });
+  }
+});
+
+module.exports = { UserRouter };
